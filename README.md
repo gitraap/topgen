@@ -18,7 +18,8 @@ DIR="$HOME/opt"
 cmake -DCMAKE_INSTALL_PREFIX="$DIR/topgen" -DBOOST_ROOT="$DIR/boost-165" -DCMAKE_BUILD_TYPE=Debug .
 make -j 5
 make install
-
+```
+For more information, read the file `doc/user-guide.pdf`
 
 Credits
 =======
