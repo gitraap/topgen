@@ -1,0 +1,254 @@
+\documentclass[12pt,onecolumn]{report}
+
+\usepackage[breaklinks=true]{hyperref}
+\usepackage{url}
+\usepackage{xcolor}
+\usepackage{multirow}
+\usepackage{psfrag}
+\usepackage{fancybox}
+\usepackage[boxed]{algorithm2e}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3}
+\usepackage{framed}
+\usepackage{listings}
+\usepackage{xcolor}
+\definecolor{listinggray}{gray}{0.9}
+\definecolor{lbcolor}{rgb}{0.9,0.9,0.9}
+\lstset{
+	backgroundcolor=\color{lbcolor},
+	tabsize=4,    
+	%   rulecolor=,
+	language=[GNU]C++,
+	basicstyle=\scriptsize,
+	upquote=true,
+	aboveskip={1.5\baselineskip},
+	columns=fixed,
+	showstringspaces=false,
+	extendedchars=false,
+	breaklines=true,
+	prebreak = \raisebox{0ex}[0ex][0ex]{\ensuremath{\hookleftarrow}},
+	frame=single,
+	%numbers=left,
+	showtabs=false,
+	showspaces=false,
+	showstringspaces=false,
+	identifierstyle=\ttfamily,
+	keywordstyle=\color[rgb]{0,0,1},
+	commentstyle=\color[rgb]{0.026,0.112,0.095},
+	stringstyle=\color[rgb]{0.627,0.126,0.941},
+	numberstyle=\color[rgb]{0.205, 0.142, 0.73},
+	%\lstdefinestyle{C++}{language=C++,style=numbers}’.
+}
+
+%%
+%% Our own commands
+%%
+
+\title{Topgen User Guide}
+\author{Juan A. Villar}
+\date{Date: April 12, 2016}
+
+\begin{document}
+
+\maketitle
+% \tableofcontents
+% \listoftables
+% \listoffigures
+
+\section{Introduction}
+
+TopGen is an extensible and easy-to-use library used for generating interconnection network topologies. It is written in C++ language and distributed with GPL license. The library offers a set of predefined topologies that may be used by any network simulator. New topologies can be incorporated into library without affecting the existing ones. Moreover, the library provides information that may be used to fill routing tables based on well-known deterministic routing algorithms. In the following sections, we briefly describe most of the available topologies and show real examples of usage for users who want to links their applications and simulators to the library.
+
+\section{Available Topologies}
+
+Basically, applications access to this library using a pointer of the class \verb|BaseNetwork| existing in the name space \verb|topgen|. For instance, the following lines show how to do this linkage. 
+
+\begin{lstlisting}
+        #include <BaseNetwork.h>
+
+topgen::BaseNetwork * m_pTopology; 
+\end{lstlisting}
+
+All the topologies have been implemented as classes that inherent from the parent class \verb|BaseNetwork| so that applications share a common API. From the application point of view, users simply create an object of the particular class that extend \verb|BaseNetwork|, and they assign the reference to the pointer. Next, we show various examples of topologies currently available in the library.
+
+\subsection*{Single router network}
+
+This network consists of only one router that interconnects certain number of NICs. The main purpose of this topology is to debug critical components of the modeled routers. For instance, this topology can be used to check out if a router class effectively achieves the maximum throughput under certain conditions. The class \verb|CRouter| admits one parameter: the number of NICs in the network, thus the router has as many ports as NICs. For example, the constructor of this class can be invoked as follows:
+
+\begin{lstlisting}
+int m_iEndNodes = 36;
+m_pTopology = new topgen::CRouter(m_iEndNodes);
+\end{lstlisting}
+
+\subsection*{Fully connected network}
+
+This network represents the topology in which every NIC is directly connected to the rest of NICs without intermediate routers. The main purpose of this topology is to debug critical components of the modeled NICs. The class \verb|CFully| admits one parameter: the number of NICs in the network. For instance, the constructor of this class can be invoked as follows:
+
+\begin{lstlisting}
+int m_iEndNodes = 7;
+m_pTopology = new topgen::CFully(m_iEndNodes);
+\end{lstlisting}
+
+\subsection*{Mesh}
+
+This network builds the classic mesh often found in literature. The class \verb|CMesh| requires the number of dimensions (only 2 and 3 dimensions are currently supported) and the width of every dimension, thus it can be established asymmetric meshes. For instance, the constructor of this class can be invoked as follows to connect 512 NICs with a 3-dimension mesh:
+
+\begin{lstlisting}
+int m_iDimensions = 3;
+int m_iKarity1, m_iKarity2, m_iKarity3;
+m_iKarity1 = m_iKarity2 = m_iKarity3 = 8;
+m_pTopology = new topgen::CMesh(m_iDimensions, m_iKarity1, m_iKarity2, m_iKarity3);
+\end{lstlisting}
+
+\subsection*{Torus}
+
+This network also builds the classic torus found in literature. The constructor requires the same parameters as the constructor of the class \verb|CMesh|. For instance, to connect 512 NICs with a 3-dimension torus do the following:
+
+\begin{lstlisting}
+int m_iDimensions = 3;
+int m_iKarity1, m_iKarity2, m_iKarity3;
+m_iKarity1 = m_iKarity2 = m_iKarity3 = 8;
+m_pTopology = new topgen::CTorus(m_iDimensions, m_iKarity1, m_iKarity2, m_iKarity3);
+\end{lstlisting}
+
+\subsection*{Hypercube}
+
+The hypercube topology has been widely studied in research papers and in the academia since it was preferred to build shared-memory multiprocessor systems. There are a number of ordered dimensions where routers are assigned to. Every router connects to other routers inside its dimension and uses two ports to link with a router of the previous and next dimensions respectively. For example, an hypercube of 4 dimensions and 16 NICs can be built as follows:
+
+\begin{lstlisting}
+int m_iDimensions = 4;
+m_pTopology = new topgen::CCube(m_iDimensions);
+\end{lstlisting}
+
+\subsection*{MIN}
+
+The term MIN stands for Multistage Interconnection Network. This kind of topology is often referred as just fat-tree or $k$-ary $n$-tree because it consists of ($2k$)-port routers allocated in $n$ stages to connect a total of $k^n$ NICs. The constructor requires the number of NICs, the router radix (total number of ports of routers), the permutation used to interconnect stages and routing algorithm. 
+
+For instance, the following lines define a MIN network (4-ary 3-tree) interconnecting 64 NICs. 
+\begin{lstlisting}
+int m_iEndNodes = 64;
+int m_iRadix = 8;
+topgen::m_eConnection = topgen::butterfly;
+topgen::m_eRoutingAlgorithm = topgen::destro;
+m_pTopology = new topgen::CMIN(m_iEndNodes, m_iRadix, m_eConnection, m_eRoutingAlgorithm);
+\end{lstlisting}
+
+So far, there are two permutations supported: \verb|perfect-shuffle| and \verb|butterfly|; and three routing algorithms: \verb|destro|, \verb|psdestro| (DESTRO used with perfect-shuffle permutation), and \verb|selfrouting| (d-mod-k routing).
+
+Additionally, the constructor admits the type of embedded node with the method \verb|Settings|. This advanced feature allows to define combined high-radix networks whose routers are built with single low-radix routers. Nevertheless, users who want to disable this feature and consider standard routers, they just need to set the type of node to neutral values like in the next lines.
+
+\begin{lstlisting}
+((topgen::CMIN*) m_pTopology)->Settings(topgen::standard, topgen::switchSTD, topgen::Alpha, 0, "");
+\end{lstlisting}
+
+\subsection*{KNS}
+
+The term KNS stands for \textit{} as defined in \cite{Penaranda16}. In this topology, NICs are physically distributed as in a torus, but the NICs are not connected by means of links between them forming a ring of NICs per dimension. Instead of that, the NICs of every dimension are interconnected with a single router or a indirect topology like a fat-tree. For instance, the next lines define the KNS that interconnects 1296 NICs with 2-dimension direct topology and one router in every dimension.
+
+\begin{lstlisting}
+int m_iDimensions = 2;
+int m_pKaries[2] = {36,36};
+topgen::knsIndirectType m_eIndirectType = topgen::knsrouter
+int m_pRadixes[2] = {36,36};
+m_pTopology = new topgen::CKNS(m_iDimensions, m_pKaries, m_eIndirectType, m_pRadixes, false);
+\end{lstlisting}
+
+\subsection*{XGFT}
+
+The term XGFT stands for \textit{eXtended Generalized Fat Tree} as defined in \cite{Yuan}. This topology is a fat-tree where the number of ports upwards and downwards is not necessarily equal. Nevertheless, all the ports of the routers are interconnected. For instance, the next lines define the XGFT \{3;18,36;1,18\} that interconnects 648 NICs.
+
+\begin{lstlisting}
+int m_iRadix = 36;
+int m_iHeight = 2;
+int m_pChildren[2] = {18,36};
+int m_pParents[2] = {18,18};
+m_pTopology = new topgen::CXGFT(m_iRadix, m_iHeight, m_pChildren, m_pParents, false);
+\end{lstlisting}
+
+\subsection*{RLFT}
+
+The term RLFT stands for \textit{Real Life Fat Trees} as defined in \cite{Zahavi}. This topology is a fat-tree, similar to a $k$-ary $n$-tree, but the last stage has half routers than previous ones, thus all the ports are used. The interconnection pattern supported is butterfly, whereas the corresponding routing algorithm is DESTRO \cite{Crispin}. Next lines define a RLFT of 64 NICs built with 8-port routers.
+
+\begin{lstlisting}
+int m_iEndNodes = 64;
+int m_iRadix = 8;
+m_pTopology = new topgen::CRLFT(m_iEndNodes, m_iRadix, topgen::butterfly, topgen::destro);
+\end{lstlisting}
+
+
+\section{Retrieving Information}
+
+The class \verb|topgen::BaseNetwork| offers a common API through which applications can retrieve information describing topologies. The constructor of the topology defines the parameters of the topology that is really built into memory in the method \verb|topgen::RunAll| published by every class.
+
+After calling \verb|topgen::RunAll|, we can read general values of the topology  as the number of destinations (aka NICs) and total number of routers (switches) in the network.
+
+\begin{lstlisting}
+int NumNICs = m_pTopology->NumberOfDestinations();
+int NumRouters = m_pTopology->NumberOfSwitches();
+printf("NICs=%d\n", NumNICs);
+printf("Switches=%d\n",NumRouters);
+\end{lstlisting}
+
+If the number of NICs is known, then it would be easy to retrieve every NIC using its identifier (integer number that uniquely identifies every NIC in the network). The library returns the information of each NIC as an object of the class \verb|topgen::CInputAdapterType_Node|, whereas the corresponding information of each router is an object of the class \verb|topgen::CElementType_Node|.
+
+\begin{lstlisting}
+for (int nic = 0; nic < NumNICs; nic++) {
+    topgen::CInputAdapterType_Node * tg_ia = m_pTopology->GetInputAdapter(nic);
+
+    int router = m_pTopology->GetElementConnectedTo(tg_ia->m_iID);
+    topgen::CElementType_Node * tg_element = m_pTopology->GetElement(router);
+
+    printf("NIC %d is connected to router %d.\n", tg_ia->m_iID, tg_element->m_iIdentifier);
+}
+\end{lstlisting}
+
+
+Similarly to NICs, the library also allows to enumerate all the routers in the network in order to find out all the topology. The procedure basically consists in asking if every router port is sequentially connected to another router with the method \verb|IsElementToElement|, or to a NIC with \verb|IsElementToIA|. Nevertheless, the router port can be disconnected with the method \verb|IsElementToAir| since this situation is also possible in some topologies.
+
+\begin{lstlisting}
+for (int router = 0; router < NumRouters; router++) {
+	topgen::CElementType_Node * tg_element = m_pTopology->GetElement(router);
+	for (int port = 0; port < tg_element->m_iPorts; port++) {
+		/* data written inside topgen library */
+		unsigned int neighbour_node[1];
+		unsigned int neighbour_port[1];
+		
+		printf("router %d port %d connects to ", router, port);
+		if (m_pTopology->IsElementToElement(router, port, neighbour_node, neighbour_port)) {
+			printf("router %d port %d.\n", neighbour_node[0], neighbour_port[0]);
+		} else if (m_pTopology->IsElementToIA(router, port, neighbour_node, neighbour_port)) {
+			printf("NIC %d port %d.\n", neighbour_node[0], neighbour_port[0]);
+		} else if (m_pTopology->IsElementToAir(router, port, neighbour_node, neighbour_port)) {
+			printf("air.\n");
+		} else {
+			printf("Unknown error.\n");
+		}
+	}
+}
+\end{lstlisting}
+
+On the other hand, the library provides routing information for filling routing tables used in routers. This feature is bound to a small number of topologies (e.g., hypercubes, meshes, torus, and MINs) because many topologies consider adaptive routing algorithm. The TopGen API returns the output port given a router and destination. Nevertheless, this data may be useful to enumerate the paths of any pair of NICs. For instance, given a 3D mesh with 512 NICs, we can determine the output port to reach the NIC 511 at switch 0 invoking the method \verb|GetOutputport| with the next code:
+
+\begin{lstlisting}
+int identifier = 0;
+int destination = 511;
+int output = m_pTopology->GetOutputport(identifier, destination);
+printf("router:%d destination:%d output:%d.\n",identifier, destination, output);
+\end{lstlisting}
+
+\section{Creation of new topologies}
+
+TopGen allows users to easily add new topologies as simple as creating new C++ classes that inherent from \verb|BaseNetwork|. These C++ classes encapsulate all the detailed description of the topology without affecting the rest of existing topologies. Although it is not compulsory, they are often created three new C++ classes for each topology: a main class that extends \verb|BaseNetwork|, an two other auxiliary classes for describing the router and channels used in the new topology. For instance, let's suppose that a new topology called \textit{CoolTopology} must be supported in TopGen, then programmers should create a main class called \textit{CCoolTopo}, and \textit{CCoolTopoNode} and \textit{CCoolTopoChannel}. This is the naming policy that has been followed in the library so far.
+
+As previously mentioned, \verb|BaseNetwork| holds the information of NICs (aka Input Adapters), Elements (aka Switches) and Channels (aka links) in three main lists named  \verb|m_pInputAdapters|, \verb|m_pElements| and \verb|m_pChannels|, respectively. Moreover, \verb|BaseNetwork| offers methods for inserting items into the lists, for instance, \verb|_LoadIA()|, \verb|_LoadElement()| and \verb|_LoadChannel()|, respectively. 
+
+Although, the user is free to numerate the components of the network, but the identifiers of NICs and switches have to start in zero for optimization purposes. The user/programmer is responsible of filling these lists according to the topgen programmer's understanding of how the new topology is. This description is performed in two phases: the building phase and the loading phase. 
+
+The first one aims to provide a logical description based on objects of the classes describing the router/node and channel. This phase consists of the methods \verb|BuildNetwork()|, \verb|BuildInterconnection()| and \verb|BuildChannels()|. The programmer is free to distribute the code among the methods as needed.
+
+Later, in the second phase, the logical descriptions are completed and loaded into the lists inherited from \verb|BaseNetwork|. Similarly, the user can freely distribute the code among the methods \verb|LoadNetwork()| and \verb|LoadRoutes()|. These two methods and the three Build methods will be appropriately invoked in the method \verb|RunAll| that really builds everything.
+
+\bibliographystyle{IEEEtran}
+\bibliography{BiblioDB}
+
+\end{document}
